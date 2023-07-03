@@ -11,7 +11,7 @@ import sys
 
 mu_dict = {'bird':1.4e-9,
           'mammal':2.2e-9}
-time_series_path = '/scratch/nick/MSMC-Curve-Analysis/msmc_curve_data/'
+time_series_path = '/scratch/nick/MSMC-Curve-Analysis/data/msmc_curve_data_birds'
 test_case_path = '/scratch/nick/MSMC-Curve-Analysis/test_case_data/'
 generation_lengths_path = '/scratch/nick/MSMC-Curve-Analysis/generation_lengths/'
 
