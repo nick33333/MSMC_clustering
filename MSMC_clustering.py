@@ -452,11 +452,8 @@ class Msmc_clustering():
         # if scaled_to_real: # Scale data to real time and eff. pop. sizes
 
         # Only use series' of the longest known length
-        print('Shadow wizard fool')
-        print(self.series_lengths)
         if len(self.series_lengths) > 0:  
             max_series_len = max(self.series_lengths)
-            print(max_series_len)
             newMySeries = []
             newNamesOfMySeries = []
             for idx, series in enumerate(self.mySeries):
@@ -473,46 +470,6 @@ class Msmc_clustering():
                     newNamesOfMySeries.append(self.namesofMySeries[idx])
             self.mySeries = newMySeries
             self.namesofMySeries = newNamesOfMySeries
-
-    # def normalize_series(self, series: "pd.series") -> "pd.series":
-    #     '''
-    #     Normalize a pandas series (df or col) to [0, 1].
-    #     Handle case where all data may be 0
-        
-    #     Kinda lame, but self.flat_curves this is the only reason
-    #     log10_scale_time_and_normalize_values and normalize_series are methods
-    #     '''
-    #     # print("Normalizing")
-    #     # print(series.unique())
-    #     # print(series.unique()[0])
-    #     if len(series.unique()) == 1:
-    #         self.flat_curves += 1
-    #         return np.zeros(len(series))
-    #     else:
-    #         return (series - series.min()) / (series.max() - series.min())
-
-    # def log10_scale_time_and_normalize_values(self, mySeries, namesofMySeries):
-    #     '''
-    #     Transform time column into log10 scale [BAD]
-    #         - Due to use of DTW, using a log10 transform exponentially decreases
-    #           the difference (time) between data points as ts curve will be in terms
-    #           of magnitude rather than time
-    #         - Instead, maybe forget about log10 transform except when it comes to plotting
-    #     Don't 
-    #     and either
-    #     (1) Normalize lambda column to [0, 1]
-    #     (2) Divide lambda column by 1e4
-    #     '''
-    #     for idx in range(len(self.mySeries)):
-    #         if self.use_time_log10_scaling:
-    #             self.mySeries[idx][self.time_field] = np.log10(self.mySeries[idx][self.time_field])
-    #         if self.use_value_normalization:
-    #             self.mySeries[idx][self.value_field] = self.normalize_series(self.mySeries[idx][self.value_field])
-    #         else:
-    #             pass
-            
-
-            
 
     def plot_series(self, num_to_plot=None, cols=5, fs_x=50, fs_y=25, **step_kwargs):
         '''
