@@ -481,12 +481,12 @@ class Msmc_clustering():
                     # print("filter_data")
                     # print(self.time_field)
                     # print(series)
-                    if series[self.time_field].iloc[0] == 0:  # If 1st time entry is 0
-                        # print(f"len of trimmed df: {len(series.iloc[1:])}")
-                        newMySeries.append(series.iloc[1:])  # Clip off 1st entry to avoid -inf err when scaling to log10 scale in log10_scale_time_and_normalize_values()
-                        # Entry at 0th and 1st idx are identical for lambda so no meaningful info should be lost
-                    else:
-                        newMySeries.append(series)
+                    # if series[self.time_field].iloc[0] == 0:  # If 1st time entry is 0
+                    #     # print(f"len of trimmed df: {len(series.iloc[1:])}")
+                    #     newMySeries.append(series.iloc[1:])  # Clip off 1st entry to avoid -inf err when scaling to log10 scale in log10_scale_time_and_normalize_values()
+                    #     # Entry at 0th and 1st idx are identical for lambda so no meaningful info should be lost
+                    # else:
+                    newMySeries.append(series)
                     newNamesOfMySeries.append(self.namesofMySeries[idx])
             self.mySeries = newMySeries
             self.namesofMySeries = newNamesOfMySeries
