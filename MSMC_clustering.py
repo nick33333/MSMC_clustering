@@ -438,6 +438,53 @@ files, sep = \'\t\' \
         else:
             return None
 
+    def filter_data(self, uniform_ts_curve_domains=False):
+        '''
+        First part takes in a group of series and scales their time ranges to
+        the series with the oldest date.
+
+        Inputs:
+        1.) Set of unique series lengths
+        2.) List of series lengths 
+        3.) Option for scaling 
+        '''
+        # Record sizes and lengths of series
+        # if scaled_to_real: # Scale data to real time and eff. pop. sizes
+
+        # Only use series' of the longest known length
+        max_series_len = max(self.series_lengths)
+        newMySeries = []
+        newNamesOfMySeries = []
+        for idx, series in enumerate(self.mySeries):
+            if len(series) == max_series_len or self.time_window: # "or self.time_window" is included in condition for enabling the reading of time window'd data
+                # print(self.time_field)
+                # print(series)
+                if series[self.time_field].iloc[0] == 0:  # If 1st time entry is 0
+                    # print(f"len of trimmed df: {len(series.iloc[1:])}")
+                    newMySeries.append(series.iloc[1:])  # Clip off 1st entry to avoid -inf err when scaling to log10 scale in normalize()
+                    # Entry at 0th and 1st idx are identical for lambda so no meaningful info should be lost
+                else:
+                    newMySeries.append(series)
+                newNamesOfMySeries.append(self.namesofMySeries[idx])
+        self.mySeries = newMySeries
+        self.namesofMySeries = newNamesOfMySeries
+
+        # Find largest final time plotted among series
+        # Make sure all series' are on the range of the series of the largest size (biggest final time recorded on X-axis)
+        # This should be fine since all times boundaries are implied to end on inf anyways (found in original data)
+
+        if uniform_ts_curve_domains:
+            ts_beginning_time = {series[self.time_field].max() for series in self.mySeries} # units in terms of max(series) (Time)
+            ts_beginning_time = max(ts_beginning_time)
+            to_extend_idxs = [] # Record series' which had final recorded times less that biggest final time
+            for i in range(len(self.mySeries)):
+                if max(self.mySeries[i]) != ts_beginning_time: # If series doesn't extend to oldest time series beginning time
+                    to_extend_idxs.append(i)
+            for idx in to_extend_idxs: # Scale time boundaries of each series to the oldest known one in all data
+                self.mySeries[idx][self.time_field].iloc[-1] = ts_beginning_time
+                
+        for idx, name in enumerate(self.namesofMySeries):
+            self.name2series[name] = self.mySeries[idx]
 
     def normalize_series(self, series: "pd.series") -> "pd.series":
         '''
