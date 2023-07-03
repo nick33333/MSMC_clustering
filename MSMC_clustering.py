@@ -564,7 +564,15 @@ class Msmc_clustering():
                        plot_barycenters=True,
                        **kwargs):
         '''
-        Func clusters using DBSCAN algorithm with DTW distance
+        If using Kmeans (main algo used), all data entries (items in mySeries)
+        must be of the same length. Training won't work otherwise. Training
+        on data where time_window=False should be fine for training if you follow
+        the assumptions for Msmc_clustering data. If you entered a time_window,
+        clustering will likely end in failure. To cluster windowed data, interpolate
+        the data which you just windowed to and equal number of data points like 
+        50, 100, 200, etc.
+        
+        DBSCAN notes:
 
         eps: The maximum distance between two samples for one to be considered 
         as in the neighborhood of the other. This is not a maximum bound on the 
@@ -719,6 +727,10 @@ class Msmc_clustering():
                                     save_name="distr_" + save_name)
             print("DID I CLOSE THE PLOT??? PLEASE TELL ME I DID!")
             plt.close()
+
+    def to_training_data(self):
+        X = np.array([i.to_numpy() for i in self.mySeries])
+        return X
 
     def plot_curve_clusters(self,
                             cleanSeries,
