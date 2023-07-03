@@ -132,26 +132,25 @@ class Msmc_clustering():
     def __init__(self,
                  directory,
                  friendly_note=True,
-                 mu=None,
-                 generation_time_path=None,
-                 real_time=False,
-                 normalize_lambda=True,
-                 log_scale_time=False,
-                 plot_on_log_scale=False,
-                 uniform_ts_curve_domains=False,
-                 to_omit=[],
-                 exclude_subdirs=[],
+                 mu=None, # rf
+                 generation_time_path=None, # rf
+                 real_time=False, # rf
+                 normalize_lambda=True, # rf
+                 log_scale_time=False, # rf
+                 plot_on_log_scale=False,  # Don't really need to touch unless you want to use Msmc_clustering in ipynb
+                 uniform_ts_curve_domains=False, # rf
+                 to_omit=[], # rf
+                 exclude_subdirs=[], # rf
                  manual_cluster_count=False,
                  algo="kmeans",
-                 suffix='.txt',
-                 omit_front_prior=0, 
-                 omit_back_prior=0,
-                 time_window=False,
-                 index_field="time_index",
-                 time_field="left_time_boundary",
-                 value_field="lambda",
-                 ignore_fields:"list<str>"=["right_time_boundary"],
-                 **readfile_kwargs):
+                 suffix='.txt', # rf
+                 omit_front_prior=0, # rf
+                 omit_back_prior=0, # rf
+                 time_window=False, # rf
+                 time_field="left_time_boundary", # rf
+                 value_field="lambda", # rf
+                 ignore_fields:"list<str>"=["right_time_boundary"], # rf
+                 **readfile_kwargs): # rf
         if friendly_note:
             print(f"FRIENDLY NOTE if getting err while reading data for Msmc_clustering:\n \
 By default, Msmc_clustering reads data from directory: {directory} using pd.read_csv with default params.\n \
@@ -166,14 +165,13 @@ files, sep = \'\t\' \
         # time_window will almost always cause filter_data() to fail because of how non-uniform
         # the dataset will become.
         # TIME WINDOW SHOULD HAVE REAL YEAR VALUES, NOT LOG10 TRANSFORMED VALUES
-        self.time_window = time_window # Enter a list of len=2, where first item is lower bound and second item is upper bound on desired time window of data (time is likely on log10 scale depending on settings)
+        self.time_window = time_window  # Enter a list of len=2, where first item is lower bound and second item is upper bound on desired time window of data (time is likely on log10 scale depending on settings)
         if self.time_window:
             assert len(self.time_window) == 2, "time_window should be a list/tuple containing a lower and upper bound on the time window you desire"
             self.lowerbound, self.upperbound = self.time_window
         else:
             self.lowerbound = False
             self.upperbound = False
-        self.index_field = index_field
         self.time_field = time_field
         self.value_field = value_field
         self.ignore_fields = ignore_fields
@@ -278,6 +276,14 @@ files, sep = \'\t\' \
     # #### METHODS
     def read_file(self, directory, real_time, exclude_subdirs=[], window=False, **read_csv_kwargs):
         '''
+        Data requirements:
+        - Must be delimited by tabs, commas, etc.
+        - Must have at least 2 columns (x and y or time point and value)
+        - 1st row must contain names/labels for each column
+        - All files should follow the same format
+            - Same file descriptors (suffixes like .tsv, .csv, .txt, etc.)
+            - Same headers/column names
+        
         POTENTIAL ISSUE: When given files with a number of fields that is different from 4 (Specifically the MSMC fields)
         or 2 (plain old x, y fields), we will get an issue (see hardcoding of 'right_time_boundary' and such on df's).
         Possible solution is to allow function to take in arguments specifying the possible fields and the ones which we
@@ -308,63 +314,48 @@ files, sep = \'\t\' \
             # Dependence of my on assumption that files in a subdir are of the same class can be circumvented if I just have a mapping between filenames and tax-classes
             # print(subdir+"/")
             if subdir not in exclude_subdirs:
-                if "." in subdir:  # Then we got a file!
-                    # print("We got a file")
-                    # print(namesofMySeries)
-                    filename = subdir
-                    # if filename.endswith(suff): # Check for correct suffix
-                    if suff == filename[-len(suff):]:  # Check for correct suffix
-                        if filename[:-len(suff)] not in self.to_omit:
-                            # print(directory+subdir+"/"+filename)
-                            df = pd.read_csv(directory + "/" + filename, **read_csv_kwargs)
-                            
-                            
-                            # ISSUE CODE BELOW! Might just feed usecols to kwargs
-                            if not self.time_field:  # We need to impute index and a fake right_time_boundary col
-                                impromptu_index = list(range(df.shape[0]))
-                                # print(impromptu_index)
-                                df.index = impromptu_index
-                            else:
-                                df.set_index(keys=[self.index_field], inplace=True)
-                                
-                            df = df.iloc[self.omit_front_prior:len(df)-self.omit_back_prior]  # Perform omission of points prior to saving in self.mySeries
-                            df.sort_index(inplace=True)
-                            # and lastly, ordered the data according to our date index
-                            # self.subdir2file_dict[subdir].append(filename)
-                            if real_time:  # If real time curves are desired, transform current df (Only use for MSMC/PSMC formatted data)
-                                # mu = self.class_mu_dict[self.subdir_class_dict[subdir]]  # GOOD FOR CLUSTERING WITH BIRDS AND MAMMALS WHICH HAVE DIFF MU's. Index into my convoluted ass dictionaries to get mu's for subsets of data
-                                mu = self.mu # How things originally were when I was converting curves from only aves from B10K
-                                # Convert scaled time to real time
-                                df[self.time_field] = df[self.time_field] / mu  # Convert to generations
-                                for key in self.gen_time_dict.keys():  # Step can be improved if keys list is sorted
-                                    if key in filename:
-                                        generation_time = self.gen_time_dict[key]
-                                        df[self.time_field] = df[self.time_field] * generation_time
-                                # print(df)
-                                # # [OLD LOCATION FOR MINMAX NORM] Convert Coalescence Rate to Ne
-                                df[self.value_field] = 1 / df[self.value_field]  # Take inverse of coalescence rate
-                                df[self.value_field] = df[self.value_field] / (2 * mu)
-                            # Drop ignored fields
-                            if self.ignore_fields and len(self.ignore_fields) > 0:
-                                assert all(field in df.columns for field in self.ignore_fields), "Not all fields are in df.columns. Check ignore_fields"
-                                df = df.drop(self.ignore_fields, axis=1)
-                            mySeries.append(df)
-                            namesofMySeries.append(filename[:-len(suff)])
-                    else:
-                        print(f"self.suffix: {self.suffix} does not match suffix of {filename} {filename[-len(suff):]}")
+                # if filename.endswith(suff): # Check for correct suffix
+                if suff == subdir[-len(suff):]:  # If specified file suffix matches, assume file
+                    filename = subdir # Renamed subdir to filename for clarity
+                    if filename[:-len(suff)] not in self.to_omit: # If data isn't to be omitted
+                        # print(directory+subdir+"/"+filename)
+                        
+                        df = pd.read_csv(directory + "/" + filename, **read_csv_kwargs)
+                        # df creates index automatically
+
+                        df = df.iloc[self.omit_front_prior:len(df)-self.omit_back_prior]  # Perform omission of points prior to saving in self.mySeries
+                        df.sort_index(inplace=True)
+                        # and lastly, ordered the data according to our date index
+                        # self.subdir2file_dict[subdir].append(filename)
+                        if real_time:  # If real time curves are desired, transform current df (Only use for MSMC/PSMC formatted data)
+                            # mu = self.class_mu_dict[self.subdir_class_dict[subdir]]  # GOOD FOR CLUSTERING WITH BIRDS AND MAMMALS WHICH HAVE DIFF MU's. Index into my convoluted ass dictionaries to get mu's for subsets of data
+                            mu = self.mu # How things originally were when I was converting curves from only aves from B10K
+                            # Convert scaled time to real time
+                            df[self.time_field] = df[self.time_field] / mu  # Convert to generations
+                            for key in self.gen_time_dict.keys():  # Step can be improved if keys list is sorted
+                                if key in filename:
+                                    generation_time = self.gen_time_dict[key]
+                                    df[self.time_field] = df[self.time_field] * generation_time
+                            # print(df)
+                            # # [OLD LOCATION FOR MINMAX NORM] Convert Coalescence Rate to Ne
+                            df[self.value_field] = 1 / df[self.value_field]  # Take inverse of coalescence rate
+                            df[self.value_field] = df[self.value_field] / (2 * mu)
+                        # Drop ignored fields
+                        if self.ignore_fields and len(self.ignore_fields) > 0:
+                            assert all(field in df.columns for field in self.ignore_fields), "Not all fields are in df.columns. Check ignore_fields"
+                            df = df.drop(self.ignore_fields, axis=1)
+                        mySeries.append(df)
+                        namesofMySeries.append(filename[:-len(suff)])
                 else:
-                    # print("We got a directory")
+                    print(f"self.suffix: {self.suffix} does not match suffix of {filename} {filename[-len(suff):]}")
+                    print("We got a directory probably")
                     for filename in os.listdir(directory + subdir + "/"):  # depending on filename's taxanomical class, mu may vary
                         if suff == filename[-len(suff):]:
                         # if filename.endswith(suff):  # Check for correct file suffix
                             if filename[:-len(suff)] not in self.to_omit:
                                 df = pd.read_csv(directory + subdir + "/" + filename, **read_csv_kwargs)
-                                # Create index of df
-                                if not self.time_field:  # We need to impute index and a fake right_time_boundary col
-                                    impromptu_index = list(range(df.shape[0]))
-                                    df.index = impromptu_index
-                                else:
-                                    df.set_index(keys=[self.index_field], inplace=True)
+
+ 
                                 df = df.iloc[self.omit_front_prior:len(df)-self.omit_back_prior]  # Perform omission of points prior to saving in self.mySeries
                                 df.sort_index(inplace=True)
                                 self.subdir2file_dict[subdir].append(filename) # GOOD FOR CLUSTERING WITH BIRDS AND MAMMALS WHICH HAVE DIFF MU's.
