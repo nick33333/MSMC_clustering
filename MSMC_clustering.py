@@ -131,23 +131,23 @@ class Msmc_clustering():
     '''
     def __init__(self,
                  directory,
-                 mu=None, # rf
+                 data_file_descriptor, # rf
+                 mu=1, # rf
                  generation_time_path=None, # rf
-                 use_friendly_note=True,
-                 use_real_time=False, # rf
-                 use_value_normalization=True, # rf
-                 use_time_log10_scaling=False, # rf
-                 use_ploting_on_log10_scale=False,  # Don't really need to touch unless you want to use Msmc_clustering in ipynb
                  to_omit=[], # rf
                  exclude_subdirs=[], # rf
-                 manual_cluster_count=False,
+                 manual_cluster_count=7,
                  algo="kmeans",
-                 suffix='.txt', # rf
                  omit_front_prior=0, # rf
                  omit_back_prior=0, # rf
                  time_window=False, # rf
                  time_field="left_time_boundary", # rf
                  value_field="lambda", # rf
+                 use_friendly_note=True,
+                 use_real_time=False, # rf
+                 use_value_normalization=True, # rf
+                 use_time_log10_scaling=False, # rf
+                 use_ploting_on_log10_scale=False,  # Don't really need to touch unless you want to use Msmc_clustering in ipynb
                  **readfile_kwargs): # rf
         if use_friendly_note:
             print(f"FRIENDLY NOTE if getting err while reading data for Msmc_clustering:\n \
@@ -195,10 +195,10 @@ files, sep = \'\t\' \
             self.use_time_log10_scaling = use_time_log10_scaling 
         self.to_omit = to_omit  # List of file names to omit
         
-        self.suffix = suffix # This is meant for the read_file method... Pretty f'n screwy since its not an actual arg
+        self.data_file_descriptor = data_file_descriptor # This is meant for the read_file method... Pretty f'n screwy since its not an actual arg
         self.omit_front_prior = omit_front_prior # Omit time points before saving data to mySeries
         self.omit_back_prior = omit_back_prior
-        print(self.suffix, "type: ", type(self.suffix))
+        print(self.data_file_descriptor, "type: ", type(self.data_file_descriptor))
         print(f"\nread_file summary:")
         print(f"omit_front_prior={self.omit_front_prior}\nomit_back_prior={self.omit_back_prior}\n")
         tmp_data = self.read_file(directory,
@@ -213,7 +213,6 @@ files, sep = \'\t\' \
         self.clusterTable = None
         self.latin_names = None
         self.km = None
-        self.elbow_data = None
         self.clustering_data = None  # From cleanSeries arrays used for clustering 
         self.label2barycenter = None  # Dict that is created when runing self.find_cluster_barycenters() after clustering
         self.flat_curves = 0  # Upon normalization, we shall find how many time series curves only have 1 unique y-value (flat)
@@ -278,7 +277,7 @@ files, sep = \'\t\' \
         - Must have at least 2 columns (x and y or time point and value)
         - 1st row must contain names/labels for each column
         - All files should follow the same format
-            - Same file descriptors (suffixes like .tsv, .csv, .txt, etc.)
+            - Same file descriptors (data_file_descriptores like .tsv, .csv, .txt, etc.)
             - Same headers/column names
         
         POTENTIAL ISSUE: When given files with a number of fields that is different from 4 (Specifically the MSMC fields)
@@ -295,7 +294,7 @@ files, sep = \'\t\' \
         1.) String of directory to read in. Should end with "/". 
         2.) use_real_time: If True, converts data to real time and lambda to Ne
         3.) pd.read_csv kwargs that aren't the filename
-        4.) suffix: file descriptor used. ex: .txt, .csv, .tsv
+        4.) data_file_descriptor: file descriptor used. ex: .txt, .csv, .tsv
 
         Outputs:
         1.) List of dataframes (series)
@@ -303,7 +302,7 @@ files, sep = \'\t\' \
         3.) Set of unique series lengths 
         4.) List of series lengths
         '''
-        suff = self.suffix
+        suff = self.data_file_descriptor
         mySeries = []
         namesofMySeries = []
         # print(self.to_omit)
@@ -311,7 +310,7 @@ files, sep = \'\t\' \
             # Dependence of my on assumption that files in a subdir are of the same class can be circumvented if I just have a mapping between filenames and tax-classes
             # print(subdir+"/")
             if subdir not in exclude_subdirs:
-                if suff == subdir[-len(suff):]:  # If specified file suffix matches, assume file
+                if suff == subdir[-len(suff):]:  # If specified file data_file_descriptor matches, assume file
                     filename = subdir # Renamed subdir to filename for clarity
                     if filename[:-len(suff)] not in self.to_omit: # If data isn't to be omitted
                         df = pd.read_csv(directory + "/" + filename, usecols=[self.time_field, self.value_field], **read_csv_kwargs)
@@ -333,11 +332,11 @@ files, sep = \'\t\' \
                         mySeries.append(df)
                         namesofMySeries.append(filename[:-len(suff)])
                 else:
-                    print(f"self.suffix: {self.suffix} does not match suffix of {filename} {filename[-len(suff):]}")
+                    print(f"self.data_file_descriptor: {self.data_file_descriptor} does not match data_file_descriptor of {filename} {filename[-len(suff):]}")
                     print("We got a directory probably")
                     for filename in os.listdir(directory + subdir + "/"):  # depending on filename's taxanomical class, mu may vary
                         if suff == filename[-len(suff):]:
-                        # if filename.endswith(suff):  # Check for correct file suffix
+                        # if filename.endswith(suff):  # Check for correct file data_file_descriptor
                             if filename[:-len(suff)] not in self.to_omit:
                                 df = pd.read_csv(directory + subdir + "/" + filename, **read_csv_kwargs)
 
@@ -363,7 +362,7 @@ files, sep = \'\t\' \
                                 mySeries.append(df)
                                 namesofMySeries.append(filename[:-len(suff)])
                         else:
-                            print(f"self.suffix: {self.suffix} does not match suffix of {filename} {filename[-len(suff):]}")
+                            print(f"self.data_file_descriptor: {self.data_file_descriptor} does not match data_file_descriptor of {filename} {filename[-len(suff):]}")
         # HERE MIGHT BE GOOD TO WINDOW OFF DATA
         if self.time_window:
             # print('len of my series before windowing:', len(mySeries))
@@ -481,7 +480,7 @@ files, sep = \'\t\' \
             else:
                 pass
 
-    def plot_series(self, num_to_plot=None, cols=5, fs_x=50, fs_y=25):
+    def plot_series(self, num_to_plot=None, cols=5, fs_x=50, fs_y=25, **step_kwargs):
         '''
         Plots curves for mySeries dfs as they are in current object. By default
         mySeries dfs may only be in terms of Scaled time and Coalescence Rate
@@ -507,65 +506,14 @@ files, sep = \'\t\' \
                 curr = self.mySeries[i*cols+j]
                 x_list = curr[self.time_field].to_numpy()
                 y_list = curr[self.value_field].to_numpy()
-                axs[i, j].step(x_list, y_list, 'g-', where="pre")
+                axs[i, j].step(x_list, y_list, 'g-', where="pre", **step_kwargs)
                 axs[i, j].set_title(self.namesofMySeries[i*cols+j])
                 axs[i, j].set_xlabel(self.xlabel)  # time
                 axs[i, j].set_ylabel(self.ylabel)  # size
         fig.patch.set_facecolor('white')  # Changes background to white
         plt.show()
 
-    def elbow_method(self, random_state=205, gamma=None, save_name="cluster-related-figures/elbow-method-plot.png", plot=False, low=2, high=20, save_to=None):
-        '''
 
-        Usage ex: 
-        save_to = "MSMC-Exploratory-Analysis/results/figures/"
-        instance.elbow_method(save_to=save_to)
-        '''
-        fig = plt.figure()
-        plt.suptitle(f"gamma = {gamma}")
-        elbow_data = []
-        cleanSeries = [series for series in self.mySeries]
-        for n_clusters in range (low, high+1):
-            if not gamma is None:
-                print(f"soft-DTW gamma = {gamma}")
-                if self.algo == "kmeans":
-                    print(f"gamma = {gamma}")
-                    km = TimeSeriesKMeans(n_clusters=n_clusters, verbose=False, 
-                                          metric="softdtw", 
-                                          metric_params={"gamma": gamma}, 
-                                          dtw_inertia=True, 
-                                          random_state=random_state)
-                elif self.algo == "kshapes":
-                    km = KShape(n_clusters=n_clusters, verbose=False, 
-                                random_state=random_state) 
-                else:
-                    km = TimeSeriesKMeans(n_clusters=n_clusters, verbose=False, 
-                                          metric="softdtw", 
-                                          metric_params={"gamma": gamma}, 
-                                          dtw_inertia=True, 
-                                          random_state=random_state)
-            else:
-                print("DTW")
-                if self.algo == "kmeans":
-                    km = TimeSeriesKMeans(n_clusters=n_clusters, verbose=False, 
-                                          metric="dtw", dtw_inertia=True, 
-                                          random_state=random_state)
-                elif self.algo == "kshapes":
-                    km = KShape(n_clusters=n_clusters, verbose=False, 
-                                random_state=random_state) 
-                else:
-                    km = TimeSeriesKMeans(n_clusters=n_clusters, verbose=False, 
-                                          metric="dtw", dtw_inertia=True, 
-                                          random_state=random_state)
-            y_pred = km.fit_predict(cleanSeries)
-            elbow_data.append((n_clusters, km.inertia_))
-        ax = pd.DataFrame(elbow_data, columns=['clusters', 'distance']).plot(x='clusters', y='distance')
-        self.elbow_data = elbow_data
-        ax.set_ylabel("Distortion in Sum of squared distances (Inertia)")
-        if save_to:
-            plt.savefig(save_to + save_name, dpi=300)
-        plt.show()
-        return
 
     def compute_cluster_barycenter(self, label: "int", iter: "int" = 5, gamma=None, **barycenter_averaging_kwargs):
         '''
