@@ -395,6 +395,9 @@ class Msmc_clustering():
 
     def read_gen_times(self, directory: "str") -> "dict":
         '''
+        Note: Pretty old method, hasn't really been proofed like most other
+        methods, but it works.
+        
         Makes a dict where the scientific names of species are the keys and their
         corresponding generation lengths are the values. This method takes a
         path to a directory containing files (tab separated) where each row 
