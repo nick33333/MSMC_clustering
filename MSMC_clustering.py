@@ -18,6 +18,14 @@ from tslearn.metrics import soft_dtw
 from tslearn.clustering import KShape
 from tslearn.clustering import TimeSeriesKMeans
 
+def log10_with_zero(x):
+    '''
+    np.log10(0) kept returning -inf (probably for good reason), but it kept
+    being annoying so I asked chatGPT to make a log10 func to return 0 where
+    np.log10 returns -inf because one time point altered with this shouldn't
+    affect the clustering too bad I hope.
+    '''
+    return np.where(x == 0, 0, np.log10(x))
 
 def hierarchical_clustering(distance_matrix, method='complete'):
     '''
@@ -173,7 +181,7 @@ def log10_scale_time_and_normalize_values(mySeries,
             flat_curve = 0
             
         if use_time_log10_scaling:
-            series[time_field] = np.log10(series[time_field])
+            series[time_field] = log10_with_zero(series[time_field])
         if use_value_normalization:
             series[value_field], flat_curve = normalize_series_column(series[value_field]) # Where flat_curve's redudancy shows
         if flat_curve == 0:
@@ -762,7 +770,7 @@ class Msmc_clustering():
             for i in range(len(self.dtw_labels)): # For each curve's label
                     if self.dtw_labels[i]==label: # match it to the current unique/possible label focused on
                         if self.use_plotting_on_log10_scale and not self.use_time_log10_scaling:
-                            x = np.log10(cleanSeries[i][self.time_field].to_numpy()) # Index mySeries for df
+                            x = log10_with_zero(cleanSeries[i][self.time_field].to_numpy()) # Index mySeries for df
                         else:
                             x = cleanSeries[i][self.time_field].to_numpy()
                         y = cleanSeries[i][self.value_field].to_numpy()
@@ -882,10 +890,10 @@ class Msmc_clustering():
             series = df
 
         if use_plotting_on_log10_scale and not self.use_time_log10_scaling:
-            x = np.log10(series[self.time_field].to_numpy()) # Index mySeries for df
+            x = log10_with_zero(series[self.time_field].to_numpy()) # Index mySeries for df
             # if winStart and winEnd:
-            #     winStart = np.log10(winStart)
-            #     winEnd = np.log10(winEnd)
+            #     winStart = log10_with_zero(winStart)
+            #     winEnd = log10_with_zero(winEnd)
         else:
             x = series[self.time_field].to_numpy()
         y = series[self.value_field].to_numpy()
