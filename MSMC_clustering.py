@@ -257,7 +257,16 @@ class Msmc_clustering():
         # self.log10_scale_time_and_normalize_values()
         if use_friendly_note:
             print(f"\nFRIENDLY NOTE 2 if getting nothing in mySeries after reading data with Msmc_clustering: \
-                    \nDepending on the time_window you select, there may be no points in your input data which fit into the time_window")
+                    \nDepending on the time_window you select, there may be no points in your input data which \
+                    \nfit into the time_window. Make sure time window is in real time (this means you need to set \
+                    \nuse_real_time_and_c_rate_transform = True)! Also, if using time_window, you probably won't be \
+                    \nable to cluster data just yet. You would want to dump windowed data from the mySeries attribute \
+                    \ninto a directory, interpolate the data in that directory so all files are of a uniform length, \
+                    \nand read real time processed data which has been interpolated with a new Msmc_clustering instance \
+                    \nwith use_real_time_and_c_rate_transform = False and maybe use_value_normalization=False and \
+                    \nuse_time_log10_scaling=False if data was processed with Msmc_clustering where use_value_normalization=True \
+                    \nand use_time_log10_scaling=True \
+                    \nex: time window for pleistocene to last glacial period might be something like: time_window = [1.17E4, 2.58E6]\n")
         self.lenMySeries = len(self.mySeries)
         self.name2series = dict()  # Dict important for mapping names to series, label,
         self.dtw_labels = None  # Will be list of labels for how curves are clustered
