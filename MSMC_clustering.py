@@ -10,6 +10,7 @@ from sklearn.metrics import pairwise_distances
 from sklearn.cluster import DBSCAN
 from sklearn.cluster import KMeans
 from sklearn.cluster import FeatureAgglomeration
+from scipy import interpolate
 # from tslearn
 from tslearn.barycenters import dtw_barycenter_averaging
 from tslearn.barycenters import softdtw_barycenter
@@ -17,6 +18,7 @@ from tslearn.metrics import dtw
 from tslearn.metrics import soft_dtw
 from tslearn.clustering import KShape
 from tslearn.clustering import TimeSeriesKMeans
+
 
 def log10_with_zero(x):
     '''
@@ -26,6 +28,7 @@ def log10_with_zero(x):
     affect the clustering too bad I hope.
     '''
     return np.where(x == 0, 0, np.log10(x))
+
 
 def hierarchical_clustering(distance_matrix, method='complete'):
     '''
@@ -75,7 +78,7 @@ def label2seriesMatrix(MC, label):
 
 def max_pairwise_dists_of_cluster(MC):
     '''max_pairwise_dists_of_cluster
-    Finds the max pairwise distances observed in each cluster 
+    Finds the max pairwise distances observed in each cluster
     '''
     label_maxdists_lite = dict()
     label_maxdists = dict()
@@ -109,18 +112,13 @@ def seriesWindow(df, by, upperbound, lowerbound):
     Truncates pandas df to desired start and stop bounds by a designated
     field
     '''
-    # print(f'upperbound {upperbound} by {by}:',(df[by] < upperbound))
-    # print(f'lowerbound {lowerbound} by {by}:',(df[by] > lowerbound))
     index = (df[by] < upperbound) & (df[by] > lowerbound)
-    # print(df)
-    # print(index)
     return df.loc[index]
 
 
 def windowMySeries(mySeries, namesofMySeries, **kwargs):
     '''
     seriesWindow wrapper function.
-    
     Takes in a list of time series dataframes (and names list) and returns a
     truncated version of that list of time series dataframes. Truncation is
     performed with seriesWindow function which takes in dataframes, a field to
@@ -135,24 +133,22 @@ def windowMySeries(mySeries, namesofMySeries, **kwargs):
             windowedNamesofMySeries.append(namesofMySeries[idx]) # Append name of windowed time series df
     return windowedSeries, windowedNamesofMySeries
 
+
 def normalize_series_column(series_column: "pd.series") -> "pd.series":
     '''
     Normalize a pandas series_column (df or col) to [0, 1].
     Handle case where all data may be 0
-    
     Kinda lame, but self.flat_curves this is the only reason
     log10_scale_time_and_normalize_values and normalize_series_column are methods
     '''
-    # print("Normalizing")
-    # print(series_column.unique())
-    # print(series_column.unique()[0])
     if len(series_column.unique()) == 1:
         flat_curve = 1
         return np.zeros(len(series_column)), flat_curve
     else:
         flat_curve = 0
         return (series_column - series_column.min()) / (series_column.max() - series_column.min()), flat_curve
-    
+
+
 def log10_scale_time_and_normalize_values(mySeries,
                                           namesofMySeries,
                                           use_time_log10_scaling,
@@ -179,7 +175,6 @@ def log10_scale_time_and_normalize_values(mySeries,
             flat_curve = 1
         else:
             flat_curve = 0
-            
         if use_time_log10_scaling:
             series[time_field] = log10_with_zero(series[time_field])
         if use_value_normalization:
@@ -189,6 +184,52 @@ def log10_scale_time_and_normalize_values(mySeries,
             newNamesOfMySeries.append(namesofMySeries[idx])
         flat_curves += flat_curve 
     return newMySeries, newNamesOfMySeries, flat_curves
+
+
+def interpolate_series(series:"np.array",
+                       interpolation_pts:"int"=200,
+                       interpolation_kind:"str"="linear")->"np.array":
+    '''
+    Function interpolates time series with timestamped
+    values using scipy interp1d. Input series should
+    be 2D where the 1st dimension is the length of the
+    time series and the 2nd dimension is a time and value.
+    
+    ex: Series is of shape (60, 2). This indicates that
+    the series is 60 points long where each point is a
+    time and value.
+    
+    Input:
+    series = np.array([[0, 0.1], [1, 0.2], ... [59, 6.0] ])
+    series.shape = (60, 2)
+    
+    Output: Interpolating to 200 points using linear interp.
+    newseries = np.array([[0, 0.1], [1, 0.111], ... [200, 6.0] ])
+    series.shape = (200, 2)
+    '''
+    x = series[:, 0]
+    y = series[:, 1]
+    f = interpolate.interp1d(x, y, kind=interpolation_kind)
+    newx = np.linspace(x.min(), x.max(), interpolation_pts)
+    newy = f(newx)
+    newseries = np.column_stack((newx, newy))
+    return newseries
+
+def interpolate_series_list(series_list: "list[pd.DataFrame]",
+                            **interpolate_series_kwargs)->"list[pd.DataFrame]":
+    '''
+    Function Takes list of time series dataframes and returns 
+    a list of interpolated time series dataframes. This is used
+    in the last stage of Msmc_clustering.read_file().
+    '''
+    interpolated_series_list = []
+    for series in series_list:
+        tmp_series = series.to_numpy()
+        interpolated_series = interpolate_series(tmp_series, **interpolate_series_kwargs)
+        df = pd.DataFrame(interpolated_series, columns=series.columns)
+        interpolated_series_list.append(df)
+    return interpolated_series_list
+        
 
 class Msmc_clustering():
     '''
@@ -209,6 +250,9 @@ class Msmc_clustering():
                  time_window=False,
                  time_field="left_time_boundary",
                  value_field="lambda",
+                 interpolation_pts=200,
+                 interpolation_kind='linear',
+                 use_interpolation=False,
                  use_friendly_note=True,
                  use_real_time_and_c_rate_transform=False,
                  use_value_normalization=True,
@@ -224,39 +268,39 @@ class Msmc_clustering():
                     \nfiles, <sep = \'\t\'>")
             
         # #### ATTRIBUTES:
-        # ## DATA SETTINGS
-        
+        # Bools
+        self.use_value_normalization = use_value_normalization  # Either normalize lambda or make lambda on log10 scale
+        self.use_real_time_and_c_rate_transform = use_real_time_and_c_rate_transform
+        self.use_plotting_on_log10_scale = use_plotting_on_log10_scale
+        self.use_time_log10_scaling = use_time_log10_scaling 
+        self.use_interpolation = use_interpolation
         # time_window should not be used if you want to cluster, this is meant for reading in data
         # time_window will almost always cause filter_data() to fail because of how non-uniform
         # the dataset will become.
         # TIME WINDOW SHOULD HAVE REAL YEAR VALUES, NOT LOG10 TRANSFORMED VALUES
         # time_window should be a list/tuple containing a lower and upper bound on the time window you desire
+        # Data settings
         self.time_window = time_window  # Enter a list of len=2, where first item is lower bound and second item is upper bound on desired time window of data (time is likely on log10 scale depending on settings)
         if not self.time_window:
             self.lowerbound = False
             self.upperbound = False
         elif len(self.time_window) == 2:
             self.lowerbound, self.upperbound = self.time_window
-            # assert type(self.lowerbound) == type(self.upperbound), "Items in time_window must be of same type"
-            # assert isinstance(self.lowerbound, int), "Time window must contain ints due to its use for indexing mySeries dataframes"
+        self.interpolation_pts=interpolation_pts
+        self.interpolation_kind=interpolation_kind
         self.time_field = time_field
         self.value_field = value_field
-        self.mu = mu  # Possible that files use different mutation rates    
-        self.use_value_normalization = use_value_normalization  # Either normalize lambda or make lambda on log10 scale
-        self.use_real_time_and_c_rate_transform = use_real_time_and_c_rate_transform
-        self.gen_time_dict = self.read_gen_times(generation_time_path)  # keys are latin names delim by "_" instead of " "
-        
-        
-        self.use_plotting_on_log10_scale = use_plotting_on_log10_scale
-        self.use_time_log10_scaling = use_time_log10_scaling 
+        self.mu = mu  # Possible that files use different mutation rates
         self.to_omit = to_omit  # List of file names to omit
-        
         self.data_file_descriptor = data_file_descriptor # This is meant for the read_file method... Pretty f'n screwy since its not an actual arg
         self.omit_front_prior = omit_front_prior # Omit time points before saving data to mySeries
         self.omit_back_prior = omit_back_prior
         print(self.data_file_descriptor, "type: ", type(self.data_file_descriptor))
-        print(f"\nread_file summary:")
+        
+        print(f"\nREADING DATA")
+        print(f"read_file summary:")
         print(f"omit_front_prior={self.omit_front_prior}\nomit_back_prior={self.omit_back_prior}\n")
+        self.gen_time_dict = self.read_gen_times(generation_time_path)  # keys are latin names delim by "_" instead of " "
         tmp_data = self.read_file(directory,
                                   use_real_time_and_c_rate_transform,
                                   exclude_subdirs,
@@ -396,18 +440,25 @@ class Msmc_clustering():
                                                        upperbound=self.upperbound,
                                                        lowerbound=self.lowerbound)
             print('len of my series after windowing:', len(mySeries))
-        if self.use_time_log10_scaling or self.use_value_normalization:
+        if self.use_time_log10_scaling or self.use_value_normalization: # Performed after windowing so we can window in real time if performing transforms
             mySeries, namesofMySeries, self.flat_curves = log10_scale_time_and_normalize_values(mySeries= mySeries,
-                                                                                                 namesofMySeries=namesofMySeries,
-                                                                                                 use_time_log10_scaling=self.use_time_log10_scaling,
-                                                                                                 use_value_normalization=self.use_value_normalization,
-                                                                                                 time_field=self.time_field,
-                                                                                                 value_field=self.value_field)
+                                                                                                namesofMySeries=namesofMySeries,
+                                                                                                use_time_log10_scaling=self.use_time_log10_scaling,
+                                                                                                use_value_normalization=self.use_value_normalization,
+                                                                                                time_field=self.time_field,
+                                                                                                value_field=self.value_field)
+
+        if self.use_interpolation:
+            mySeries = interpolate_series_list(mySeries,
+                                               interpolation_pts=self.interpolation_pts,
+                                               interpolation_kind=self.interpolation_kind)
 
         series_lengths = {len(series) for series in mySeries}  # Compile unique Series lengths
         series_lengths_list = [len(series) for series in mySeries]  # Compile unique Series length
         # print(series_lengths)
         # print(series_lengths_list)
+        
+            
         return mySeries, namesofMySeries, series_lengths, series_lengths_list
 
     def read_gen_times(self, directory: "str") -> "dict":
@@ -729,6 +780,22 @@ class Msmc_clustering():
             plt.close()
 
     def to_training_data(self):
+        '''
+        Method returns time series as an 3 dimensional tensor. 1st dimension
+        corresponds to samples/entries. 2nd dimension corresponds to the length of
+        an entry. 3rd dimension corresponds to actual time point and value in a
+        segment of the time series.
+
+        Note: If you want the names corresponding to each sample in the output,
+        access the namesofmySeries attribute for a list of names corresponding
+        to each sample.
+
+        ex: to_training_data returns data of the shape (100, 60, 2). There are
+        100 samples in this dataset. Each sample has a time series of length
+        60. Each "point" in the time series has 2 fields which are usually a
+        specific timestamp and a value. In terms of the MSMC the time stamp is
+        time in the past and the value is NE.
+        '''
         X = np.array([i.to_numpy() for i in self.mySeries])
         return X
 
