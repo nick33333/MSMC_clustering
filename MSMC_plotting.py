@@ -1,0 +1,40 @@
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
+import plotly
+from MSMC_clustering import Msmc_clustering
+import pandas as pd
+import numpy as np
+import os
+
+
+def add_curve_to_subplot(fig: "plotly.graph_objs._figure.Figure",
+                         name,
+                         cols,
+                         Msmc_clustering: Msmc_clustering,
+                         km=None,
+                         marker_color='rgba(0, 180, 255, .8)',
+                         **goScatter_kwargs):
+    '''
+    fig: Plotly subplot
+    name: Name of curve to plot
+    cols: Desired number of columns in subplot
+    Msmc_clustering: Obj should hold the data and curve which you want to plot
+    km: Clustering model
+    '''
+    series = Msmc_clustering.name2series[name]
+    if isinstance(km, type(None)): # If True, Msmc_clustering must have its own km along wit hdata
+        km = Msmc_clustering.km
+    label = km.predict(np.array([series.to_numpy()]))
+    time_field = Msmc_clustering.time_field
+    value_field = Msmc_clustering.value_field
+    rows = given_col_find_row(k=Msmc_clustering.manual_cluster_count, cols=cols)
+    row, col =  given_label_find_row_col(rows, cols, label[0] + 1)
+    fig.update_xaxes(title_text=time_field, row=row, col=col)
+    fig.update_yaxes(title_text=value_field, row=row, col=col)
+    subfig = go.Scatter(x=series[time_field],
+                        y=series[value_field], 
+                        name=name,
+                        marker_color=marker_color,
+                        **goScatter_kwargs)
+    fig.add_trace(subfig, row=row, col=col)
+    return
