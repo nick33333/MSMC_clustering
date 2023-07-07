@@ -1,10 +1,34 @@
-from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import plotly
 from MSMC_clustering import Msmc_clustering
 import pandas as pd
 import numpy as np
 import os
+
+def given_col_find_row(k, cols):
+    '''
+    k is the number of clusters. cols is the desired number of columns in
+    subplot.
+    '''
+    if k%cols==0:
+        rows = k//cols
+    else:
+        if k//cols == 0:
+            rows = 1
+        else:
+            rows = k//cols + 1
+    return rows
+        
+def given_label_find_row_col(rows, cols, label):
+    '''
+    Make sure label is an int. Depending on the int, a row and col is
+    given
+    '''
+
+    col = (label-1)%cols + 1
+    row = (label-1)//cols + 1
+    
+    return row, col
 
 
 def add_curve_to_subplot(fig: "plotly.graph_objs._figure.Figure",

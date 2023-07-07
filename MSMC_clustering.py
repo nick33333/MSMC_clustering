@@ -19,7 +19,6 @@ from tslearn.metrics import soft_dtw
 from tslearn.clustering import KShape
 from tslearn.clustering import TimeSeriesKMeans
 
-
 def log10_with_zero(x):
     '''
     np.log10(0) kept returning -inf (probably for good reason), but it kept
@@ -238,7 +237,7 @@ class Msmc_clustering():
     '''
     def __init__(self,
                  directory,
-                 data_file_descriptor,
+                 data_file_descriptor='bbb',
                  mu=1,
                  generation_time_path=None,
                  to_omit=[],
@@ -411,14 +410,17 @@ class Msmc_clustering():
         mySeries = []
         namesofMySeries = []
         # print(self.to_omit)
+        print("Look im reading!")
         for subdir in os.listdir(directory):  # There is an assumption that each subdir has its own mu since each subdir has corresponded to a single tax-class
+            # print(subdir)
             if subdir not in exclude_subdirs and suff == subdir[-len(suff):]: # If specified file data_file_descriptor matches, assume file
                 filename = subdir  # Renamed subdir to filename for clarity
                 if filename[:-len(suff)] not in self.to_omit: # If data isn't to be omitted
+                    # print(directory + "/" + filename, self.time_field, self.value_field, **read_csv_kwargs)
                     df = pd.read_csv(directory + "/" + filename, usecols=[self.time_field, self.value_field], **read_csv_kwargs)
-                    
+                    # print(df)
                     df = df.iloc[self.omit_front_prior:len(df)-self.omit_back_prior]  # Perform omission of points prior to saving in self.mySeries
-                    
+                    # print(df)
                     if use_real_time_and_c_rate_transform:  # If real time curves are desired, transform current df (Only use for MSMC/PSMC formatted data)
                         # Convert scaled time to real time
                         df[self.time_field] = df[self.time_field] / self.mu  # Convert scaled time to generations
@@ -457,7 +459,8 @@ class Msmc_clustering():
         series_lengths_list = [len(series) for series in mySeries]  # Compile unique Series length
         # print(series_lengths)
         # print(series_lengths_list)
-        
+        print(f'len of mySeries: {len(self.mySeries)} shape of entry: {self.mySeries[0].shape}')
+
             
         return mySeries, namesofMySeries, series_lengths, series_lengths_list
 
