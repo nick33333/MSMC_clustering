@@ -281,7 +281,7 @@ class Msmc_clustering():
         # time_window should be a list/tuple containing a lower and upper bound on the time window you desire
         # Data settings
         self.time_window = time_window  # Enter a list of len=2, where first item is lower bound and second item is upper bound on desired time window of data (time is likely on log10 scale depending on settings)
-        if not self.time_window:
+        if not self.time_window or len(self.time_window)==0:
             self.lowerbound = False
             self.upperbound = False
         elif len(self.time_window) == 2:
