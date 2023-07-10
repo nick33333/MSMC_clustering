@@ -6,6 +6,31 @@ import pandas as pd
 import numpy as np
 import os
 
+def given_col_find_row(k, cols):
+    '''
+    k is the number of clusters. cols is the desired number of columns in
+    subplot.
+    '''
+    if k%cols==0:
+        rows = k//cols
+    else:
+        if k//cols == 0:
+            rows = 1
+        else:
+            rows = k//cols + 1
+    return rows
+
+
+def given_label_find_row_col(rows, cols, label):
+    '''
+    Make sure label is an int. Depending on the int, a row and col is
+    given
+    '''
+
+    col = (label-1)%cols + 1
+    row = (label-1)//cols + 1
+    
+    return row, col
 
 def add_curve_to_subplot(fig: "plotly.graph_objs._figure.Figure",
                          name,
@@ -32,7 +57,7 @@ def add_curve_to_subplot(fig: "plotly.graph_objs._figure.Figure",
     fig.update_xaxes(title_text=time_field, row=row, col=col)
     fig.update_yaxes(title_text=value_field, row=row, col=col)
     subfig = go.Scatter(x=series[time_field],
-                        y=series[value_field], 
+                        y=series[value_field],
                         name=name,
                         marker_color=marker_color,
                         **goScatter_kwargs)
