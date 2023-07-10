@@ -415,6 +415,7 @@ class Msmc_clustering():
             # print(subdir)
             if subdir not in exclude_subdirs and suff == subdir[-len(suff):]: # If specified file data_file_descriptor matches, assume file
                 filename = subdir  # Renamed subdir to filename for clarity
+                # print(filename)
                 if filename[:-len(suff)] not in self.to_omit: # If data isn't to be omitted
                     # print(directory + "/" + filename, self.time_field, self.value_field, **read_csv_kwargs)
                     df = pd.read_csv(directory + "/" + filename, usecols=[self.time_field, self.value_field], **read_csv_kwargs)

@@ -18,6 +18,8 @@ def given_col_find_row(k, cols):
         else:
             rows = k//cols + 1
     return rows
+
+
         
 def given_label_find_row_col(rows, cols, label):
     '''
@@ -56,7 +58,7 @@ def add_curve_to_subplot(fig: "plotly.graph_objs._figure.Figure",
     fig.update_xaxes(title_text=time_field, row=row, col=col)
     fig.update_yaxes(title_text=value_field, row=row, col=col)
     subfig = go.Scatter(x=series[time_field],
-                        y=series[value_field], 
+                        y=series[value_field],
                         name=name,
                         marker_color=marker_color,
                         **goScatter_kwargs)
