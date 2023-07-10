@@ -1,4 +1,3 @@
-from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import plotly
 from MSMC_clustering import Msmc_clustering
@@ -21,6 +20,7 @@ def given_col_find_row(k, cols):
     return rows
 
 
+        
 def given_label_find_row_col(rows, cols, label):
     '''
     Make sure label is an int. Depending on the int, a row and col is
@@ -31,6 +31,7 @@ def given_label_find_row_col(rows, cols, label):
     row = (label-1)//cols + 1
     
     return row, col
+
 
 def add_curve_to_subplot(fig: "plotly.graph_objs._figure.Figure",
                          name,
