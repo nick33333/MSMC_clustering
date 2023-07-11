@@ -460,7 +460,7 @@ class Msmc_clustering():
         series_lengths_list = [len(series) for series in mySeries]  # Compile unique Series length
         # print(series_lengths)
         # print(series_lengths_list)
-        print(f'len of mySeries: {len(self.mySeries)} shape of entry: {self.mySeries[0].shape}')
+        print(f'len of mySeries: {len(mySeries)} shape of entry: {mySeries[0].shape}')
 
             
         return mySeries, namesofMySeries, series_lengths, series_lengths_list
