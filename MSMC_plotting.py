@@ -62,6 +62,7 @@ def add_curve_to_subplot(fig: "plotly.graph_objs._figure.Figure",
     
     subfig = go.Scatter(x=series[time_field],
                         y=series[value_field],
+                        marker=dict(size=12,),
                         marker_color=marker_color,
                         name = name,
                         hovertemplate = f'<i>{name}<i>' +
