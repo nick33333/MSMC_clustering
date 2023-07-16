@@ -38,6 +38,7 @@ def add_curve_to_subplot(fig: "plotly.graph_objs._figure.Figure",
                          cols,
                          Msmc_clustering: Msmc_clustering,
                          km=None,
+                         label=None,
                          marker_color='rgba(0, 180, 255, .8)',
                          **goScatter_kwargs):
     '''
@@ -48,27 +49,30 @@ def add_curve_to_subplot(fig: "plotly.graph_objs._figure.Figure",
     km: Clustering model
     '''
     series = Msmc_clustering.name2series[name]
-    if isinstance(km, type(None)): # If True, Msmc_clustering must have its own km along wit hdata
+    if km is None and label is not None: # If True, Msmc_clustering must have its own km along wit hdata
+        label=label
+    elif km is not None and label is None:
+        label = km.predict(np.array([series.to_numpy()]))
+    elif km is None and label is None:
         km = Msmc_clustering.km
-    label = km.predict(np.array([series.to_numpy()]))
+        label = km.predict(np.array([series.to_numpy()]))
+    
     time_field = Msmc_clustering.time_field
     value_field = Msmc_clustering.value_field
     rows = given_col_find_row(k=Msmc_clustering.manual_cluster_count, cols=cols)
-    row, col =  given_label_find_row_col(rows, cols, label[0] + 1)
+    row, col =  given_label_find_row_col(rows, cols, label + 1)
     fig.update_xaxes(title_text=time_field, row=row, col=col)
     fig.update_yaxes(title_text=value_field, row=row, col=col)
-    
-    # For line hover highlighting see https://stackoverflow.com/questions/63885102/change-color-of-an-entire-trace-on-hover-click-in-plotly
-    
-    subfig = go.Scatter(x=series[time_field],
+    subfig = go.Scatter(
+                        x=series[time_field],
                         y=series[value_field],
-                        marker=dict(size=12,),
-                        marker_color=marker_color,
+                        marker = dict(size = 6,  color = marker_color),
                         name = name,
                         hovertemplate = f'<i>{name}<i>' +
                                         f'<br><b>{time_field}</b>:' + '%{x}</br>' +
-                                        f'<br><b>{value_field}</b>:' + ' %{y}<br>' +
-                                        '<extra></extra>', # <extra></extra> removes trace name from hover
+                                        f'<br><b>{value_field}</b>:' + '%{y}<br>' +
+                                        '<extra></extra>',
                         **goScatter_kwargs)
-    fig.add_trace(subfig, row=row, col=col)
+    fig.add_trace(subfig, row=row, col=col,
+    )
     return
