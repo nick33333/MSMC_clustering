@@ -2,16 +2,28 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from tslearn.metrics import dtw, dtw_path
 import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
-import time
 import colorsys
 import copy
+
 
 from MSMC_clustering import *
 
 '''
 Functions in this module are used in plotting and updating the curve cluster heatmap
+
+User should be able to add in whatever kind (normalized/unnormalized/transformed/
+untransformed data) to cluster plots.
+
+LAYOUT IDEA:
+- cluster plots can be on right
+- On the left can be a column with dropdown/input settings prompting the user
+  for their desired Msmc_clustering settings like data processing and 
+  input data.
+  - Submit button can be below this column to update:
+    - Plot
+    - Dicts
+    - Distance matrices
 '''
 
 def compute_label2series_names_and_name2trace_index(Msmc_clustering, km=None):
@@ -20,11 +32,11 @@ def compute_label2series_names_and_name2trace_index(Msmc_clustering, km=None):
     For each prediction, 
     Outputs:
     - name2trace_index
-    - label2series_names: PREDICTIONS CAN BE DONE HERE 
+    - label2series_names: PREDICTIONS CAN BE DONE HERE! HUGE DATASTRUCT
     '''
     K = Msmc_clustering.manual_cluster_count
     name2trace_index = dict()
-    label2series_names = {k:[] for k in range(K)}
+    label2series_names = {k: [] for k in range(K)}
     if km is not None:
         print("using given km")
         km = km

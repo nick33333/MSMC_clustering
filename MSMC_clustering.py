@@ -443,7 +443,7 @@ class Msmc_clustering():
                                                        upperbound=self.upperbound,
                                                        lowerbound=self.lowerbound)
             print('len of my series after windowing:', len(mySeries))
-        if self.use_time_log10_scaling or self.use_value_normalization: # Performed after windowing so we can window in real time if performing transforms
+        if self.use_time_log10_scaling or self.use_value_normalization:  # Performed after windowing so we can window in real time if performing transforms
             mySeries, namesofMySeries, self.flat_curves = log10_scale_time_and_normalize_values(mySeries= mySeries,
                                                                                                 namesofMySeries=namesofMySeries,
                                                                                                 use_time_log10_scaling=self.use_time_log10_scaling,
