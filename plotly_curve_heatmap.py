@@ -118,6 +118,8 @@ def find_k_neighbors(series_name,
     should be issued. series_name may change with the user's cursor/hovering
     and k_nearest might change based on a slider.
     '''
+    if series_name is None: # easy default workaround
+        return []
     assert series_name in series_name2label
     k = series_name2label[series_name]
     dist_matrix = label2dist_matrix[k]
