@@ -127,6 +127,7 @@ def find_k_neighbors(series_name,
     series_name_idx = name_list.index(series_name) # Find index of row in dist_matrix corresponding to series name
     row = dist_matrix[series_name_idx,:] # Find row containing distances of neighbors to series_name
     return sorted(list(zip(name_list, row)),key=lambda x:x[1])[:k_nearest]
+    # return list(zip(name_list, row))[:k_nearest]
 
 '''
 Everything u need to alter the colors and viewable stats of k nearest neighbors
