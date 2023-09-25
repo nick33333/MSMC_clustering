@@ -236,7 +236,7 @@ class Msmc_clustering():
     readfile_kwargs to pd.read_csv! Make sure to specify sep parameter!
     '''
     def __init__(self,
-                 directory,
+                 directory=None,
                  data_file_descriptor='bbb',
                  mu=1,
                  generation_time_path=None,
@@ -295,15 +295,18 @@ class Msmc_clustering():
         self.omit_front_prior = omit_front_prior # Omit time points before saving data to mySeries
         self.omit_back_prior = omit_back_prior
         print(self.data_file_descriptor, "type: ", type(self.data_file_descriptor))
-        
         print(f"\nREADING DATA")
         print(f"read_file summary:")
         print(f"omit_front_prior={self.omit_front_prior}\nomit_back_prior={self.omit_back_prior}\n")
         self.gen_time_dict = self.read_gen_times(generation_time_path)  # keys are latin names delim by "_" instead of " "
-        tmp_data = self.read_file(directory,
-                                  use_real_time_and_c_rate_transform,
-                                  exclude_subdirs,
-                                  **readfile_kwargs)
+        self.latin_names = list()
+        if directory is None:
+            tmp_data = [list(), list(), list(), list()]
+        else:
+            tmp_data = self.read_file(directory,
+                                      use_real_time_and_c_rate_transform,
+                                      exclude_subdirs,
+                                      **readfile_kwargs)
         self.mySeries, self.namesofMySeries, self.series_lengths, self.series_lengths_lists = tmp_data
         # self.log10_scale_time_and_normalize_values()
         if use_friendly_note:
@@ -320,10 +323,10 @@ class Msmc_clustering():
                     \nex: time window for pleistocene to last glacial period might be something like: time_window = [1.17E4, 2.58E6]\n")
         self.lenMySeries = len(self.mySeries)
         self.name2series = dict()  # Dict important for mapping names to series, label,
-        self.dtw_labels = None  # Will be list of labels for how curves are clustered
+        self.dtw_labels = list()  # Will be list of labels for how curves are clustered
         self.exhibitted_cluster_count = None
         self.clusterTable = None
-        self.latin_names = None
+        
         self.km = None
         self.label2barycenter = None  # Dict that is created when runing self.find_cluster_barycenters() after clustering
         self.flat_curves = 0  # Upon normalization, we shall find how many time series curves only have 1 unique y-value (flat)
@@ -462,8 +465,84 @@ class Msmc_clustering():
         # print(series_lengths_list)
         print(f'len of mySeries: {len(mySeries)} shape of entry: {mySeries[0].shape}')
 
-            
+        latin_names = [f[:f.index("_GC")] for f in namesofMySeries]
+        print(latin_names)
+        self.latin_names = latin_names
         return mySeries, namesofMySeries, series_lengths, series_lengths_list
+    
+    def add_files(self, path, file_list, sep, **read_csv_kwargs):
+        '''
+        Reads file from {path} + {file_list[i]}, so make sure {path} ends with \
+        file_list will need to be a list of full paths to files
+
+        Read additional datafiles using current object settings
+        '''
+        suff = self.data_file_descriptor
+        mySeries = []
+        namesofMySeries = []
+        flat_curves = []
+        # print(self.to_omit)
+        print("Im adding files!")
+        for filename in file_list:  # There is an assumption that each subdir has its own mu since each subdir has corresponded to a single tax-class
+            df = pd.read_csv(path + filename, usecols=[self.time_field, self.value_field], sep=sep, **read_csv_kwargs)
+            df = df.iloc[self.omit_front_prior:len(df)-self.omit_back_prior]  # Perform omission of points prior to saving in self.mySeries
+            if self.use_real_time_and_c_rate_transform:  # If real time curves are desired, transform current df (Only use for MSMC/PSMC formatted data)
+                # Convert scaled time to real time
+                df[self.time_field] = df[self.time_field] / self.mu  # Convert scaled time to generations
+                for key in self.gen_time_dict.keys():  # Step can be improved if keys list is sorted
+                    if key in filename:
+                        generation_time = self.gen_time_dict[key]
+                        df[self.time_field] = df[self.time_field] * generation_time # Convert generations to real time
+                df[self.value_field] = 1 / df[self.value_field]  # Take inverse of coalescence rate
+                df[self.value_field] = df[self.value_field] / (2 * self.mu)
+            mySeries.append(df)
+            namesofMySeries.append(filename[:-len(suff)])
+        if self.time_window:
+            # print('len of my series before windowing:', len(mySeries))
+            mySeries, namesofMySeries = windowMySeries(mySeries=mySeries,
+                                                       namesofMySeries=namesofMySeries,
+                                                       by=self.time_field,
+                                                       upperbound=self.upperbound,
+                                                       lowerbound=self.lowerbound)
+            print('len of my series after windowing:', len(mySeries))
+        if self.use_time_log10_scaling or self.use_value_normalization:  # Performed after windowing so we can window in real time if performing transforms
+            mySeries, namesofMySeries, flat_curves = log10_scale_time_and_normalize_values(mySeries= mySeries,
+                                                                                           namesofMySeries=namesofMySeries,
+                                                                                           use_time_log10_scaling=self.use_time_log10_scaling,
+                                                                                           use_value_normalization=self.use_value_normalization,
+                                                                                           time_field=self.time_field,
+                                                                                           value_field=self.value_field)
+        if self.use_interpolation:
+            mySeries = interpolate_series_list(mySeries,
+                                               interpolation_pts=self.interpolation_pts,
+                                               interpolation_kind=self.interpolation_kind)
+        # Perform list updates here
+        self.flat_curves += flat_curves
+        for idx, name in enumerate(namesofMySeries):
+            # Perform prediction on files; REMINDER: use this method after loading/training model km
+            
+            latin_name = name[:name.index("_GC")]
+            self.mySeries.append(mySeries[idx])
+            self.namesofMySeries.append(namesofMySeries[idx])
+            self.name2series[name] = mySeries[idx]
+            self.latin_names.append(latin_name)
+            
+            if self.clusterTable is None:
+                if len(self.dtw_labels) == 0: # A dataset was already read before adding these files, but hasn't yet had predictions made
+                    self.dtw_labels = self.km.predict(self.mySeries)
+                else:
+                    pred = int(self.km.predict([mySeries[idx]]))
+                    self.dtw_labels.append(pred)
+                data = {"Sample": self.namesofMySeries, "Labels": self.dtw_labels}
+                self.clusterTable = pd.DataFrame.from_dict(data,  orient="columns")
+                self.clusterTable.index = self.latin_names
+            else:
+                pred = int(self.km.predict([mySeries[idx]]))
+                self.clusterTable.loc[latin_name] = [name, pred]
+        self.series_lengths = {len(series) for series in self.mySeries}  # Compile unique Series lengths
+        self.series_lengths_list = [len(series) for series in self.mySeries]  # Compile unique Series length
+        self.lenMySeries = len(self.mySeries)
+        return
 
     def read_gen_times(self, directory: "str") -> "dict":
         '''
